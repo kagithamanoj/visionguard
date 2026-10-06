@@ -10,7 +10,6 @@ Run: python scripts/make_sample_images.py [--count N] [--out DIR]
 import argparse
 import csv
 import os
-import random
 
 import cv2
 import numpy as np
@@ -29,10 +28,10 @@ def _base_plate(rng):
     noise = rng.integers(-12, 13, size=(y1 - y0, x1 - x0, 3), dtype=np.int16)
     plate = img[y0:y1, x0:x1].astype(np.int16) + noise
     img[y0:y1, x0:x1] = np.clip(plate, 0, 255).astype(np.uint8)
-    # corner bolt holes
+    # corner bolt holes: dark bore with a bright machined ring
     for cx, cy in [(130, 110), (510, 110), (130, 370), (510, 370)]:
         cv2.circle(img, (cx, cy), 14, (40, 40, 40), -1)
-        cv2.circle(img, (cx, cy), 14, (150, 150, 150), 2)
+        cv2.circle(img, (cx, cy), 14, (235, 235, 235), 2)
     return img, (x0, y0, x1, y1)
 
 
@@ -77,20 +76,19 @@ DEFECT_FNS = {"scratch": _scratch, "dent": _dent, "spots": _spots}
 
 
 def generate(count, out_dir, seed=42):
-    rng = random.Random(seed)
-    np_rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)
     os.makedirs(out_dir, exist_ok=True)
     rows = []
     defect_kinds = list(DEFECT_FNS)
     for i in range(count):
         kind = defect_kinds[i % len(defect_kinds)]
-        img, plate_box = _base_plate(np_rng)
+        img, plate_box = _base_plate(rng)
         img = DEFECT_FNS[kind](img, plate_box, rng)
         name = f"defective_{kind}_{i:03d}.png"
         cv2.imwrite(os.path.join(out_dir, name), img)
         rows.append((name, "defective"))
     for i in range(count):
-        img, _ = _base_plate(np_rng)
+        img, _ = _base_plate(rng)
         name = f"clean_{i:03d}.png"
         cv2.imwrite(os.path.join(out_dir, name), img)
         rows.append((name, "clean"))

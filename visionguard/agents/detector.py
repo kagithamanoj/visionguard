@@ -35,7 +35,7 @@ class DetectorAgent:
                  min_area: float = 80.0,
                  max_area: float = 20000.0,
                  hole_circularity: float = 0.75,
-                 ring_brightness_margin: float = 15.0):
+                 ring_brightness_margin: float = 5.0):
         self.blur_kernel = blur_kernel
         self.plate_threshold = plate_threshold
         self.defect_contrast = defect_contrast
@@ -107,7 +107,7 @@ class DetectorAgent:
             cv2.drawContours(blob_mask, [c], -1, 255, -1)
             blob_mean = cv2.mean(gray, mask=blob_mask)[0]
             contrast = (plate_mean - blob_mean) / max(plate_mean, 1.0)
-            score = float(np.clip(contrast * 2.0, 0.0, 1.0))
+            score = float(np.clip(contrast * 1.25, 0.0, 1.0))
             (_, _), (rw, rh), _ = cv2.minAreaRect(c)
             aspect = max(rw, rh) / max(min(rw, rh), 1.0)
             if aspect > 4.0:
