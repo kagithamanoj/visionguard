@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+*.pt
+*.pth
+samples/*.png
+!samples/.gitkeep
+quarantine/
+verdicts/
+audit.log
+.DS_Store
