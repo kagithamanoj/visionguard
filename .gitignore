@@ -6,7 +6,7 @@ venv/
 .env
 *.pt
 *.pth
-samples/*.png
+samples/
 !samples/.gitkeep
 quarantine/
 verdicts/

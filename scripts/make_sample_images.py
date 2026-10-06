@@ -37,16 +37,17 @@ def _base_plate(rng):
 
 def _scratch(img, plate_box, rng):
     x0, y0, x1, y1 = plate_box
-    x_start = int(rng.integers(x0 + 30, x0 + 120))
-    y_start = int(rng.integers(y0 + 40, y1 - 40))
-    pts = [(x_start, y_start)]
-    x, y = x_start, y_start
+    x = int(rng.integers(x0 + 40, x0 + 140))
+    y = int(rng.integers(y0 + 40, y1 - 40))
+    pts = []
     for _ in range(int(rng.integers(6, 12))):
+        x = min(max(x, x0 + 15), x1 - 15)
+        y = min(max(y, y0 + 15), y1 - 15)
+        pts.append((x, y))
         x += int(rng.integers(20, 45))
         y += int(rng.integers(-14, 15))
-        pts.append((x, y))
     cv2.polylines(img, [np.array(pts, dtype=np.int32)], False, (45, 45, 45),
-                  thickness=int(rng.integers(3, 6)))
+                  thickness=int(rng.integers(4, 7)))
     return img
 
 

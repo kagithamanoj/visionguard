@@ -67,7 +67,7 @@ class ActorAgent:
 
     def act(self, image_path: str, verdict, tenant: str = "default") -> dict:
         actions = self.action_policy.get(verdict.severity, ["log"])
-        taken: Dict[str object] = {"actions": [], "tenant": tenant}
+        taken: Dict[str, object] = {"actions": [], "tenant": tenant}
         for action in actions:
             if action == "quarantine":
                 dest = self._quarantine(image_path)
