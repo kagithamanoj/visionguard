@@ -6,7 +6,7 @@ Competition 2026. Check items off as they land.
 ## High value
 
 - [x] Demo video generator script (`scripts/make_demo_video.py`): ffmpeg slideshow of sample images with pipeline verdicts overlaid, one command to regenerate.
-- [ ] Static HTML results viewer (`viewer/`): gallery of sample images with detections, verdicts, and gateway metering, generated from a pipeline run.
+- [x] Static HTML results viewer (`viewer/`): gallery of sample images with detections, verdicts, and gateway metering, generated from a pipeline run. Built via `scripts/make_results_viewer.py`; regenerated 2026-10-09.
 - [ ] Detector tuning report: grid search over detector thresholds on the synthetic set, with precision/recall per defect type written to `docs/tuning_report.md`.
 - [ ] LLM judge via AWS Bedrock: wire the stubbed `LLMJudge` hook to a real vision model as an optional second opinion, gated by config.
 - [ ] DynamoDB audit wiring: ship the Lambda JSON-lines audit entries to the provisioned audit table instead of only the log stream.

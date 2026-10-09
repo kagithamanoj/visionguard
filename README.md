@@ -48,7 +48,12 @@ uvicorn visionguard.api:app --port 8000
 # 4. Run the tests
 python -m pytest tests/ -q
 
-# 5. Train the demo-scale CNN baseline (CPU, a few minutes)
+# 5. Generate the static results viewer
+python scripts/make_results_viewer.py
+# open viewer/index.html in a browser: gallery with detections, verdicts,
+# and gateway metering, generated from a real pipeline run
+
+# 6. Train the demo-scale CNN baseline (CPU, a few minutes)
 python training/train_defect_detector.py --epochs 5 --samples 1000
 ```
 
@@ -74,6 +79,8 @@ training/
   train_defect_detector.py  # small PyTorch CNN on synthetic patches
 scripts/
   make_sample_images.py     # synthetic clean/defective plate images
+  make_demo_video.py        # ffmpeg slideshow of pipeline verdicts
+  make_results_viewer.py    # static HTML results viewer from a pipeline run
 tests/               # pytest: detector, gateway, pipeline
 docs/
   architecture.md    # components, data flow, AWS diagram
