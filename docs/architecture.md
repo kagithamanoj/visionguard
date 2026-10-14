@@ -16,8 +16,11 @@ Three agents do the work; a gateway decides whether they are allowed to.
 - **Reasoning agent** (`visionguard/agents/reasoner.py`)
   Deterministic rules turn detections into a severity verdict
   (none / minor / major / critical) with a confidence value and a
-  human-readable rationale. An `LLMJudge` hook exists for an optional
-  vision-language second opinion; it is stubbed and never faked.
+  human-readable rationale. An optional `BedrockJudge`
+  (`visionguard/agents/bedrock_judge.py`) adds a vision-language
+  second opinion through the Bedrock Converse API when
+  `VISIONGUARD_LLM_JUDGE_ENABLED=true`; it never changes the verdict,
+  it only records whether it agreed or disagreed. Off by default.
 
 - **Action agent** (`visionguard/agents/actor.py`)
   Carries out the verdict: `log` always, `quarantine` (file copy, never a
@@ -97,9 +100,11 @@ both: it produces a small CNN baseline on synthetic patches.
 
 ## What is stubbed, honestly
 
-- `LLMJudge.judge()` returns `None` by default. Wire a real vision model
-  endpoint here if you want a second opinion; the rule-based verdict
-  stands on its own either way.
+- The base `LLMJudge.judge()` returns `None` by default. The real
+  second opinion is `BedrockJudge`, wired to Bedrock Nova Lite and
+  gated by `VISIONGUARD_LLM_JUDGE_ENABLED`; the rule-based verdict
+  stands on its own either way, and any invalid reply or AWS error is
+  treated as no second opinion, never faked.
 - The actor webhook only fires if `webhook_url` is configured; otherwise
   alerts are log lines.
 - The CNN in `training/` is a demo-scale baseline on synthetic data, not a

@@ -17,6 +17,7 @@ import urllib.parse
 import boto3
 
 from visionguard.agents.actor import ActorAgent
+from visionguard.agents.bedrock_judge import BedrockJudge
 from visionguard.agents.detector import DetectorAgent
 from visionguard.agents.reasoner import ReasonerAgent
 from visionguard.gateway.policy import PolicyDenied, PolicyGateway
@@ -29,7 +30,10 @@ TENANT = os.environ.get("TENANT", "default")
 
 _gateway = PolicyGateway(audit_path="/tmp/audit.log")
 _detector = DetectorAgent()
-_reasoner = ReasonerAgent()
+# Bedrock judge is off unless VISIONGUARD_LLM_JUDGE_ENABLED=true.
+_lambda_judge = BedrockJudge.from_env()
+_reasoner = ReasonerAgent(
+    judge=_lambda_judge if _lambda_judge.enabled else None)
 _actor = ActorAgent(quarantine_dir="/tmp/quarantine",
                     audit=_gateway.audit)
 

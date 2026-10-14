@@ -24,6 +24,9 @@ resource "aws_lambda_function" "inspect" {
       VERDICTS_BUCKET   = aws_s3_bucket.verdicts.bucket
       QUARANTINE_BUCKET = aws_s3_bucket.quarantine.bucket
       TENANT            = "default"
+      VISIONGUARD_LLM_JUDGE_ENABLED = tostring(var.llm_judge_enabled)
+      VISIONGUARD_BEDROCK_MODEL_ID  = var.bedrock_model_id
+      VISIONGUARD_BEDROCK_REGION    = var.aws_region
     }
   }
 }

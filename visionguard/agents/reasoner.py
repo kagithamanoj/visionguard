@@ -1,8 +1,12 @@
 """Reasoning agent: turns raw detections into a severity verdict.
 
 Severity comes from configurable rules over defect scores and counts, so the
-behavior is deterministic and auditable. An optional LLM judge hook can add a
-second opinion; it is stubbed out by default and never faked.
+behavior is deterministic and auditable. An optional LLM judge can add a
+second opinion; it never changes the verdict, it only adds a note that
+records whether it agreed or disagreed. See
+``visionguard/agents/bedrock_judge.py`` for the real Bedrock-backed judge.
+The base ``LLMJudge`` still returns None, which means "no second opinion
+available" and the rule-based verdict stands on its own.
 """
 from dataclasses import dataclass, asdict
 from typing import List, Optional
@@ -28,7 +32,8 @@ class LLMJudge:
 
     Implement judge() to call a real model endpoint. The default stub
     returns None, which means "no second opinion available" and the
-    rule-based verdict stands on its own.
+    rule-based verdict stands on its own. ``BedrockJudge`` in
+    ``bedrock_judge.py`` is the real implementation.
     """
 
     def judge(self, detections: List[Detection],
@@ -90,11 +95,23 @@ class ReasonerAgent:
                 opinion = self.judge.judge(detections, image_path)
             except Exception:
                 opinion = None
-            if opinion:
-                judge_note = str(opinion.get("note", ""))
-                if opinion.get("severity") in ("none", "minor", "major",
-                                               "critical"):
-                    rationale += " LLM judge concurs with review."
+            if isinstance(opinion, dict) and opinion.get("severity") in (
+                    "none", "minor", "major", "critical"):
+                note = str(opinion.get("note", "")).strip()
+                model = opinion.get("model")
+                if note and model:
+                    judge_note = f"[{model}] {note}"
+                elif note:
+                    judge_note = note
+                else:
+                    judge_note = None
+                if opinion["severity"] == severity:
+                    rationale += " LLM judge agrees with this verdict."
+                else:
+                    rationale += (
+                        f" LLM judge disagrees (says "
+                        f"{opinion['severity']}); "
+                        f"rule-based verdict stands.")
 
         return Verdict(severity=severity, confidence=round(confidence, 3),
                        rationale=rationale, detection_count=count,

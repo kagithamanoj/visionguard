@@ -13,6 +13,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
 from .agents.actor import ActorAgent
+from .agents.bedrock_judge import BedrockJudge
 from .agents.detector import DetectorAgent
 from .agents.reasoner import ReasonerAgent
 from .gateway.policy import PolicyDenied, PolicyGateway
@@ -21,7 +22,10 @@ app = FastAPI(title="VisionGuard", version="0.1.0")
 
 _gateway = PolicyGateway()
 _detector = DetectorAgent()
-_reasoner = ReasonerAgent()
+# Bedrock judge is off unless VISIONGUARD_LLM_JUDGE_ENABLED=true.
+_reasoner_judge = BedrockJudge.from_env()
+_reasoner = ReasonerAgent(
+    judge=_reasoner_judge if _reasoner_judge.enabled else None)
 _actor = ActorAgent(audit=_gateway.audit)
 
 from .pipeline import run_pipeline  # noqa: E402

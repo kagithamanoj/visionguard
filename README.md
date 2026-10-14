@@ -13,6 +13,9 @@ Built for the **OpenCV AI Competition 2026** (powered by AWS).
    rejection, contrast-based scoring. Labels: scratch, dent, spot.
 2. **Reasoning agent** turns detections into a severity verdict
    (none / minor / major / critical) with confidence and a rationale.
+   An optional LLM judge (AWS Bedrock, Nova Lite) can add a second
+   opinion when `VISIONGUARD_LLM_JUDGE_ENABLED=true`; it never changes
+   the verdict, it only records agreement or disagreement.
 3. **Action agent** carries out the verdict: log, quarantine (file copy),
    alert (webhook stub).
 4. **Policy gateway** gates everything: per-tenant rate limits, minimum
@@ -63,7 +66,7 @@ python training/train_defect_detector.py --epochs 5 --samples 1000
 visionguard/
   agents/
     detector.py      # OpenCV 5 defect detection
-    reasoner.py      # rule-based severity verdicts (+ optional LLM judge hook)
+    reasoner.py      # rule-based severity verdicts (+ Bedrock LLM judge)
     actor.py         # quarantine, alert, audit
   gateway/
     policy.py        # rate limiting, confidence gating, metering, audit log
@@ -108,7 +111,12 @@ verdicts bucket; quarantined images land in the quarantine bucket.
 - The sample images and the CNN training set are synthetic. The CNN is a
   demo-scale baseline, not a production model; the classical detector is
   the primary path.
-- The LLM judge hook is stubbed by design. The rule-based verdict stands
-  on its own.
+- The LLM judge (`visionguard/agents/bedrock_judge.py`) is off by
+  default. Set `VISIONGUARD_LLM_JUDGE_ENABLED=true` (plus
+  `VISIONGUARD_BEDROCK_MODEL_ID`, default `amazon.nova-lite-v1:0`) to
+  get a Bedrock Nova Lite second opinion via the Converse API, or pass
+  `--llm-judge` to the pipeline CLI. The rule-based verdict always
+  stands; the judge only adds a note. Any invalid reply or AWS error
+  is treated as no second opinion, never faked.
 - Nothing here claims competition results. It was built for the event;
   results are whatever the judges decide.

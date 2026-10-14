@@ -53,6 +53,14 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "dynamodb:Query"
         ]
         Resource = aws_dynamodb_table.audit.arn
+      },
+      {
+        Effect = "Allow"
+        Action = ["bedrock:InvokeModel"]
+        Resource = [
+          "arn:aws:bedrock:${var.aws_region}::foundation-model/${var.bedrock_model_id}",
+          "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/*"
+        ]
       }
     ]
   })

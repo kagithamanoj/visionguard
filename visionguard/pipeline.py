@@ -11,16 +11,18 @@ import time
 from dataclasses import replace
 
 from .agents.actor import ActorAgent
+from .agents.bedrock_judge import BedrockJudge
 from .agents.detector import DetectorAgent
 from .agents.reasoner import ReasonerAgent
 from .gateway.policy import PolicyDenied, PolicyGateway
 
 
-def build(tenant_config: dict = None, **kwargs):
+def build(tenant_config: dict = None, llm_judge: bool = False, **kwargs):
     gateway = PolicyGateway(tenants=tenant_config, **kwargs) \
         if tenant_config else PolicyGateway(**kwargs)
     detector = DetectorAgent()
-    reasoner = ReasonerAgent()
+    judge = BedrockJudge.from_env(enabled=True) if llm_judge else None
+    reasoner = ReasonerAgent(judge=judge) if judge else ReasonerAgent()
     actor = ActorAgent(audit=gateway.audit)
     return detector, reasoner, actor, gateway
 
@@ -68,10 +70,19 @@ def main():
     p.add_argument("--image", required=True, help="path to the plate image")
     p.add_argument("--tenant", default="default")
     p.add_argument("--audit", default="audit.log")
+    p.add_argument("--llm-judge", action="store_true",
+                   help="enable the Bedrock vision-model second opinion "
+                        "(also gated by VISIONGUARD_LLM_JUDGE_ENABLED; "
+                        "off by default)")
     a = p.parse_args()
     gateway = PolicyGateway(audit_path=a.audit)
+    reasoner = None
+    if a.llm_judge:
+        reasoner = ReasonerAgent(
+            judge=BedrockJudge.from_env(enabled=True))
     try:
-        result = run_pipeline(a.image, tenant=a.tenant, gateway=gateway)
+        result = run_pipeline(a.image, tenant=a.tenant, gateway=gateway,
+                              reasoner=reasoner)
     except PolicyDenied as exc:
         print(json.dumps({"error": str(exc)}, indent=2))
         raise SystemExit(2)

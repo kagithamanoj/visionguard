@@ -20,3 +20,15 @@ variable "tenant_rate_limit_per_minute" {
   type        = number
   default     = 60
 }
+
+variable "bedrock_model_id" {
+  description = "Bedrock vision model used by the optional LLM judge (Nova Lite). The judge stays off unless VISIONGUARD_LLM_JUDGE_ENABLED=true."
+  type        = string
+  default     = "amazon.nova-lite-v1:0"
+}
+
+variable "llm_judge_enabled" {
+  description = "Enable the Bedrock LLM judge second opinion in the inspect Lambda. Off by default; the rule-based verdict stands alone."
+  type        = bool
+  default     = false
+}
