@@ -12,6 +12,7 @@ production LLM platforms: meter, gate, then act.
 """
 import json
 import os
+import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -54,9 +55,16 @@ DEFAULT_TENANT = {
 class PolicyGateway:
     def __init__(self,
                  tenants: Dict[str, dict] = None,
-                 audit_path: str = "audit.log"):
+                 audit_path: str = "audit.log",
+                 audit_sinks: List = None):
+        """audit_sinks: callables receiving the full audit record dict.
+
+        A sink failure never breaks an inspection: audit() catches sink
+        exceptions and logs them to stderr.
+        """
         self.tenants = tenants or {"default": dict(DEFAULT_TENANT)}
         self.audit_path = audit_path
+        self.audit_sinks = list(audit_sinks or [])
         self._buckets: Dict[str, TokenBucket] = {}
         self._lock = threading.Lock()
         self._meters: Dict[str, dict] = {}
@@ -91,6 +99,13 @@ class PolicyGateway:
                     exist_ok=True)
         with open(self.audit_path, "a") as f:
             f.write(json.dumps(record) + "\n")
+        for sink in self.audit_sinks:
+            try:
+                sink(record)
+            except Exception as exc:
+                # Audit shipping is best effort; never fail an inspection.
+                print("visionguard: audit sink failed: %s" % exc,
+                      file=sys.stderr)
 
     def check_request(self, tenant: str = "default") -> Tuple[bool, str]:
         """Gate an incoming inspection request. Returns (allowed, reason)."""

@@ -7,7 +7,9 @@ Wiring (see infra/terraform):
 
 Because OpenCV is large, deploy this as a Lambda container image that
 includes opencv-python-headless, torch, and the visionguard package.
-Environment variables: VERDICTS_BUCKET, QUARANTINE_BUCKET, TENANT.
+Environment variables: VERDICTS_BUCKET, QUARANTINE_BUCKET, TENANT,
+AUDIT_TABLE (name of the provisioned DynamoDB audit table; when unset,
+audit entries go only to the log stream).
 """
 import json
 import os
@@ -20,6 +22,7 @@ from visionguard.agents.actor import ActorAgent
 from visionguard.agents.bedrock_judge import BedrockJudge
 from visionguard.agents.detector import DetectorAgent
 from visionguard.agents.reasoner import ReasonerAgent
+from visionguard.aws.dynamodb_audit import DynamoDBAudit
 from visionguard.gateway.policy import PolicyDenied, PolicyGateway
 
 s3 = boto3.client("s3")
@@ -29,6 +32,11 @@ QUARANTINE_BUCKET = os.environ.get("QUARANTINE_BUCKET", "")
 TENANT = os.environ.get("TENANT", "default")
 
 _gateway = PolicyGateway(audit_path="/tmp/audit.log")
+# Ship JSON-lines audit entries to the DynamoDB audit table in addition to
+# the log stream. Disabled when AUDIT_TABLE is unset.
+_audit_shipper = DynamoDBAudit.from_env()
+if _audit_shipper.enabled:
+    _gateway.audit_sinks.append(_audit_shipper)
 _detector = DetectorAgent()
 # Bedrock judge is off unless VISIONGUARD_LLM_JUDGE_ENABLED=true.
 _lambda_judge = BedrockJudge.from_env()

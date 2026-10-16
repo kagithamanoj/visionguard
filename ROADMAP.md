@@ -9,7 +9,7 @@ Competition 2026. Check items off as they land.
 - [x] Static HTML results viewer (`viewer/`): gallery of sample images with detections, verdicts, and gateway metering, generated from a pipeline run. Built via `scripts/make_results_viewer.py`; regenerated 2026-10-09.
 - [x] Detector tuning report: grid search over detector thresholds on the synthetic set, with precision/recall per defect type written to `docs/tuning_report.md`. Built via `scripts/tune_detector.py` (36 configs, 150 images, seed 20261012); current defaults confirmed optimal on this set, failure cliffs documented; generated 2026-10-12.
 - [x] LLM judge via AWS Bedrock: `BedrockJudge` (`visionguard/agents/bedrock_judge.py`) calls Nova Lite through the Bedrock Converse API as an optional second opinion, gated by `VISIONGUARD_LLM_JUDGE_ENABLED` (off by default). Wired into pipeline CLI (`--llm-judge`), FastAPI service, and Lambda handler; Terraform adds `bedrock:InvokeModel` permission plus env vars. Invalid replies and AWS errors mean no second opinion, never faked. Landed 2026-10-14 with 12 new tests.
-- [ ] DynamoDB audit wiring: ship the Lambda JSON-lines audit entries to the provisioned audit table instead of only the log stream.
+- [x] DynamoDB audit wiring: ship the Lambda JSON-lines audit entries to the provisioned audit table instead of only the log stream. `DynamoDBAudit` (`visionguard/aws/dynamodb_audit.py`) is a gateway audit sink writing one row per entry (tenant/at keys, random suffix on the sort key, 90-day TTL) via `AUDIT_TABLE`; wired into the Lambda handler and Terraform env vars; sink failures are best-effort and never break an inspection. Landed 2026-10-16 with 7 new tests.
 
 ## Medium value
 

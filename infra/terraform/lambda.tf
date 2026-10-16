@@ -21,9 +21,10 @@ resource "aws_lambda_function" "inspect" {
 
   environment {
     variables = {
-      VERDICTS_BUCKET   = aws_s3_bucket.verdicts.bucket
-      QUARANTINE_BUCKET = aws_s3_bucket.quarantine.bucket
-      TENANT            = "default"
+      VERDICTS_BUCKET               = aws_s3_bucket.verdicts.bucket
+      QUARANTINE_BUCKET             = aws_s3_bucket.quarantine.bucket
+      TENANT                        = "default"
+      AUDIT_TABLE                   = aws_dynamodb_table.audit.name
       VISIONGUARD_LLM_JUDGE_ENABLED = tostring(var.llm_judge_enabled)
       VISIONGUARD_BEDROCK_MODEL_ID  = var.bedrock_model_id
       VISIONGUARD_BEDROCK_REGION    = var.aws_region
