@@ -28,12 +28,15 @@ Three agents do the work; a gateway decides whether they are allowed to.
   for critical. Every action is reported back for the audit trail.
 
 - **Policy gateway** (`visionguard/gateway/policy.py`)
-  The bouncer. Per-tenant token-bucket rate limits, minimum-confidence
+  The bouncer. Per-tenant API-key authentication (checked before any
+  metering; constant-time compare; rejections audited without logging the
+  key), per-tenant token-bucket rate limits, minimum-confidence
   thresholds (low-confidence verdicts are held for human review instead of
   firing actions), and action allow-lists (a tenant without `alert` cannot
   trigger alerts; critical is downgraded to major). It meters requests,
   denials, per-severity counts, and latencies, and appends a JSON-lines
-  audit log.
+  audit log. Keys come from tenant config or the `VISIONGUARD_API_KEYS`
+  env var; tenants without a key stay unauthenticated.
 
 - **Pipeline** (`visionguard/pipeline.py`)
   Orchestrator: `check_request` -> detect -> reason -> `check_verdict` ->
@@ -41,7 +44,9 @@ Three agents do the work; a gateway decides whether they are allowed to.
 
 - **FastAPI service** (`visionguard/api.py`)
   `POST /inspect` (image upload -> verdict JSON), `GET /metrics`,
-  `GET /health`.
+  `GET /health`. `/inspect` and `/metrics` require the `X-API-Key` header
+  when the tenant has a key configured (401 otherwise); `/metrics` returns
+  only the authenticated tenant's metering; `/health` stays open.
 
 ## Data flow
 

@@ -32,14 +32,15 @@ def run_pipeline(image_path: str,
                  detector: DetectorAgent = None,
                  reasoner: ReasonerAgent = None,
                  actor: ActorAgent = None,
-                 gateway: PolicyGateway = None) -> dict:
+                 gateway: PolicyGateway = None,
+                 api_key: str = None) -> dict:
     detector = detector or DetectorAgent()
     reasoner = reasoner or ReasonerAgent()
     gateway = gateway or PolicyGateway()
     actor = actor or ActorAgent(audit=gateway.audit)
 
     started = time.monotonic()
-    allowed, reason = gateway.check_request(tenant)
+    allowed, reason = gateway.check_request(tenant, api_key)
     if not allowed:
         raise PolicyDenied(f"request denied for tenant '{tenant}': {reason}")
 
@@ -70,6 +71,9 @@ def main():
     p.add_argument("--image", required=True, help="path to the plate image")
     p.add_argument("--tenant", default="default")
     p.add_argument("--audit", default="audit.log")
+    p.add_argument("--api-key", default=None,
+                   help="API key for the tenant (required when the tenant "
+                        "has one configured)")
     p.add_argument("--llm-judge", action="store_true",
                    help="enable the Bedrock vision-model second opinion "
                         "(also gated by VISIONGUARD_LLM_JUDGE_ENABLED; "
@@ -82,7 +86,7 @@ def main():
             judge=BedrockJudge.from_env(enabled=True))
     try:
         result = run_pipeline(a.image, tenant=a.tenant, gateway=gateway,
-                              reasoner=reasoner)
+                              reasoner=reasoner, api_key=a.api_key)
     except PolicyDenied as exc:
         print(json.dumps({"error": str(exc)}, indent=2))
         raise SystemExit(2)

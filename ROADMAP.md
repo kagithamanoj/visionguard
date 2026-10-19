@@ -13,7 +13,7 @@ Competition 2026. Check items off as they land.
 
 ## Medium value
 
-- [ ] API key auth on the FastAPI service: per-tenant keys checked by the gateway before metering.
+- [x] API key auth on the FastAPI service: per-tenant keys checked by the gateway before metering. Tenant configs accept `api_key`, also loadable from the `VISIONGUARD_API_KEYS` JSON env var via `PolicyGateway.from_env()`; `check_api_key` runs before metering in `check_request` with a constant-time compare, and rejections are audited without logging the key value. `/inspect` and `/metrics` require the `X-API-Key` header (401 on missing/wrong key), `/health` stays open, `/metrics` is scoped to the authenticated tenant, and the pipeline CLI gained `--api-key`. Keys are minted with `scripts/new_api_key.py`. Landed 2026-10-19 with 16 new tests.
 - [ ] CloudWatch dashboard and alarms: Terraform for a dashboard (invocations, verdict mix, gateway denials) plus an alarm on elevated critical rates.
 - [ ] Load test: scripted run of the pipeline over N images capturing p50/p95 latency numbers into `docs/load_test.md`.
 

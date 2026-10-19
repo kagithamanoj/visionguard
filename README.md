@@ -45,8 +45,15 @@ python -m visionguard.pipeline --image samples/defective_scratch_000.png
 # 3. Run the API
 uvicorn visionguard.api:app --port 8000
 # POST /inspect  (multipart image upload -> verdict JSON)
-# GET  /metrics  (per-tenant metering)
-# GET  /health
+# GET  /metrics  (per-tenant metering, scoped to the authenticated tenant)
+# GET  /health   (no auth)
+
+# Optional: per-tenant API keys. Tenants with a key must send it as the
+# X-API-Key header on /inspect and /metrics; /health stays open.
+python scripts/new_api_key.py --tenant acme   # prints a fresh key once
+export VISIONGUARD_API_KEYS='{"acme": "<key>"}'
+curl -H "X-API-Key: <key>" -F image=@samples/clean_000.png \
+  "http://localhost:8000/inspect?tenant=acme"
 
 # 4. Run the tests
 python -m pytest tests/ -q

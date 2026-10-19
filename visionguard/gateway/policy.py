@@ -1,22 +1,32 @@
 """Policy gateway: every inspection request passes through here.
 
-The gateway enforces three things before any agent is allowed to act:
-  1. Rate limits (token bucket per tenant) so one line cannot flood the system.
-  2. Confidence thresholds: low-confidence verdicts are held for human review
+The gateway enforces four things before any agent is allowed to act:
+  1. API-key authentication: tenants with a configured key must present
+     it; the key is checked before any metering happens.
+  2. Rate limits (token bucket per tenant) so one line cannot flood the system.
+  3. Confidence thresholds: low-confidence verdicts are held for human review
      instead of triggering quarantine or alerts.
-  3. Action allow-lists: a tenant only gets the actions it is configured for.
+  4. Action allow-lists: a tenant only gets the actions it is configured for.
 
 It also meters every request (counts, denials, latencies) and appends a
 JSON-lines audit log. Inspired by the API-gateway patterns used in
-production LLM platforms: meter, gate, then act.
+production LLM platforms: authenticate, meter, gate, then act.
 """
+import hmac
 import json
 import os
+import secrets
 import sys
 import threading
 import time
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple
+
+
+def generate_api_key(nbytes: int = 32) -> str:
+    """Generate a fresh random API key. Store it server-side and hand the
+    value to the tenant once; the gateway never logs key values."""
+    return secrets.token_urlsafe(nbytes)
 
 
 class TokenBucket:
@@ -61,6 +71,10 @@ class PolicyGateway:
 
         A sink failure never breaks an inspection: audit() catches sink
         exceptions and logs them to stderr.
+
+        A tenant config may carry "api_key": a secret the tenant must
+        present on every request. Tenants without one keep working
+        unauthenticated, so auth is strictly opt-in per tenant.
         """
         self.tenants = tenants or {"default": dict(DEFAULT_TENANT)}
         self.audit_path = audit_path
@@ -68,6 +82,39 @@ class PolicyGateway:
         self._buckets: Dict[str, TokenBucket] = {}
         self._lock = threading.Lock()
         self._meters: Dict[str, dict] = {}
+
+    @classmethod
+    def from_env(cls, env: dict = None, **kwargs) -> "PolicyGateway":
+        """Build a gateway with per-tenant API keys from the environment.
+
+        VISIONGUARD_API_KEYS holds a JSON object mapping tenant names to
+        their keys, e.g. '{"default": "sk-...", "acme": "sk-..."}'.
+        Tenants named there but missing from `tenants` get the default
+        config plus their key. Invalid JSON raises ValueError: a broken
+        key config must fail loudly, not run unauthenticated.
+        """
+        env = env if env is not None else os.environ
+        raw = env.get("VISIONGUARD_API_KEYS", "").strip()
+        keys = {}
+        if raw:
+            try:
+                parsed = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    "VISIONGUARD_API_KEYS is not valid JSON: %s" % exc)
+            if not isinstance(parsed, dict):
+                raise ValueError(
+                    "VISIONGUARD_API_KEYS must be a JSON object mapping "
+                    "tenant names to keys")
+            keys = {str(t): str(k) for t, k in parsed.items()}
+        tenants = dict(kwargs.pop("tenants", None) or
+                       {"default": dict(DEFAULT_TENANT)})
+        for tenant, key in keys.items():
+            cfg = tenants.get(tenant, dict(DEFAULT_TENANT))
+            cfg = dict(cfg)
+            cfg["api_key"] = key
+            tenants[tenant] = cfg
+        return cls(tenants=tenants, **kwargs)
 
     def _config(self, tenant: str) -> dict:
         return self.tenants.get(tenant, self.tenants.get("default",
@@ -107,8 +154,35 @@ class PolicyGateway:
                 print("visionguard: audit sink failed: %s" % exc,
                       file=sys.stderr)
 
-    def check_request(self, tenant: str = "default") -> Tuple[bool, str]:
-        """Gate an incoming inspection request. Returns (allowed, reason)."""
+    def check_api_key(self, tenant: str,
+                      api_key: str) -> Tuple[bool, str]:
+        """Authenticate a tenant by its API key. Returns (allowed, reason).
+
+        Tenants with no configured key are allowed through: auth is
+        opt-in per tenant. The key value is compared in constant time and
+        is never written to the audit log; rejections are audited as
+        api_key_rejected with the tenant name only.
+        """
+        cfg = self._config(tenant)
+        expected = cfg.get("api_key")
+        if not expected:
+            return True, "ok"
+        if api_key and hmac.compare_digest(str(api_key), expected):
+            return True, "ok"
+        self.audit({"type": "api_key_rejected", "tenant": tenant,
+                    "reason": "missing or invalid API key"})
+        return False, "missing or invalid API key"
+
+    def check_request(self, tenant: str = "default",
+                      api_key: str = None) -> Tuple[bool, str]:
+        """Gate an incoming inspection request. Returns (allowed, reason).
+
+        The API key is checked first, before any metering, so rejected
+        credentials never touch the request counters.
+        """
+        allowed, reason = self.check_api_key(tenant, api_key)
+        if not allowed:
+            return False, reason
         cfg = self._config(tenant)
         meter = self._meter(tenant)
         meter["requests"] += 1
