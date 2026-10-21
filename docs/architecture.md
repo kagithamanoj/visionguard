@@ -90,10 +90,23 @@ image --> [gateway: rate limit] --> detector --> reasoner
 
 Terraform for all of the above lives in `infra/terraform/`. The Lambda
 functions run from one container image (`infra/docker/Dockerfile`);
-Terraform overrides the CMD per function. The DynamoDB table is provisioned
-for a future step that ships the local JSON-lines audit log to DynamoDB;
-today the Lambda writes audit entries to its own log stream and the local
-service writes `audit.log`.
+Terraform overrides the CMD per function. The DynamoDB audit table ships
+the Lambda JSON-lines audit entries (see `visionguard/aws/dynamodb_audit.py`),
+and the local service writes `audit.log`.
+
+## Monitoring
+
+The inspect Lambda publishes best-effort custom metrics into the
+`VisionGuard/Inspection` CloudWatch namespace (`visionguard/aws/metrics.py`,
+gated by `VISIONGUARD_METRICS_ENABLED`, on in the Terraform stack): one
+`VerdictCount` datum per finished inspection (dimensioned by verdict and
+tenant), one `GatewayDenial` datum per gateway refusal (dimensioned by
+reason and tenant), and the inspection latency. `infra/terraform/cloudwatch.tf`
+provisions a dashboard (invocations, verdict mix, gateway denials, errors,
+latency, throttles), an SNS alert topic, and two alarms: one on an elevated
+critical-verdict rate and one on a gateway-denial spike. Thresholds and the
+optional alarm email address are variables (`critical_verdicts_per_5min`,
+`gateway_denials_per_5min`, `alarm_notification_email`).
 
 ## Local vs AWS
 

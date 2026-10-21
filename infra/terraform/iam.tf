@@ -61,6 +61,16 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "arn:aws:bedrock:${var.aws_region}::foundation-model/${var.bedrock_model_id}",
           "arn:aws:bedrock:${var.aws_region}:${data.aws_caller_identity.current.account_id}:inference-profile/*"
         ]
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["cloudwatch:PutMetricData"]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "cloudwatch:namespace" = "VisionGuard/Inspection"
+          }
+        }
       }
     ]
   })

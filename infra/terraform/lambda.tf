@@ -28,6 +28,7 @@ resource "aws_lambda_function" "inspect" {
       VISIONGUARD_LLM_JUDGE_ENABLED = tostring(var.llm_judge_enabled)
       VISIONGUARD_BEDROCK_MODEL_ID  = var.bedrock_model_id
       VISIONGUARD_BEDROCK_REGION    = var.aws_region
+      VISIONGUARD_METRICS_ENABLED   = "true"
     }
   }
 }

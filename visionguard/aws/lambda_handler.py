@@ -23,6 +23,7 @@ from visionguard.agents.bedrock_judge import BedrockJudge
 from visionguard.agents.detector import DetectorAgent
 from visionguard.agents.reasoner import ReasonerAgent
 from visionguard.aws.dynamodb_audit import DynamoDBAudit
+from visionguard.aws.metrics import MetricsPublisher
 from visionguard.gateway.policy import PolicyDenied, PolicyGateway
 
 s3 = boto3.client("s3")
@@ -30,6 +31,11 @@ s3 = boto3.client("s3")
 VERDICTS_BUCKET = os.environ.get("VERDICTS_BUCKET", "")
 QUARANTINE_BUCKET = os.environ.get("QUARANTINE_BUCKET", "")
 TENANT = os.environ.get("TENANT", "default")
+
+# CloudWatch custom metrics (VisionGuard/Inspection namespace) feeding the
+# dashboard and alarms in infra/terraform/cloudwatch.tf. Off unless
+# VISIONGUARD_METRICS_ENABLED=true; publish failures never break a run.
+_metrics = MetricsPublisher.from_env()
 
 _gateway = PolicyGateway(audit_path="/tmp/audit.log")
 # Ship JSON-lines audit entries to the DynamoDB audit table in addition to
@@ -59,10 +65,18 @@ def _process_object(bucket: str, key: str) -> dict:
                               detector=_detector, reasoner=_reasoner,
                               actor=_actor, gateway=_gateway)
     except PolicyDenied as exc:
+        # Record the gateway denial before returning; the reason string
+        # has the form "request denied for tenant '<t>': <reason>", so the
+        # last segment is the bounded denial reason.
+        reason = str(exc).rsplit(":", 1)[-1].strip()
+        _metrics.record_denial(reason or "denied", TENANT)
         return {"key": key, "denied": str(exc)}
     finally:
         if os.path.exists(local_path):
             os.unlink(local_path)
+
+    _metrics.record_verdict(result["verdict"]["severity"],
+                            result["latency_ms"], TENANT)
 
     verdict_key = os.path.splitext(key)[0] + ".verdict.json"
     if VERDICTS_BUCKET:

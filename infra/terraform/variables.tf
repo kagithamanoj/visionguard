@@ -32,3 +32,21 @@ variable "llm_judge_enabled" {
   type        = bool
   default     = false
 }
+
+variable "alarm_notification_email" {
+  description = "Email address subscribed to the CloudWatch alarm SNS topic. Empty means the topic has no email subscriber."
+  type        = string
+  default     = ""
+}
+
+variable "critical_verdicts_per_5min" {
+  description = "Number of critical verdicts in 5 minutes that fires the elevated-critical-rate alarm."
+  type        = number
+  default     = 10
+}
+
+variable "gateway_denials_per_5min" {
+  description = "Number of gateway denials in 5 minutes that fires the denial-spike alarm."
+  type        = number
+  default     = 30
+}
