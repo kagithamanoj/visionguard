@@ -10,7 +10,8 @@ Built for the **OpenCV AI Competition 2026** (powered by AWS).
 
 1. **Detection agent** finds surface defects with classical computer vision
    (OpenCV 5): plate segmentation, dark-anomaly search, mounting-hole
-   rejection, contrast-based scoring. Labels: scratch, dent, spot.
+   rejection, contrast-based scoring. Labels: scratch, dent, spot, crack,
+   corrosion.
 2. **Reasoning agent** turns detections into a severity verdict
    (none / minor / major / critical) with confidence and a rationale.
    An optional LLM judge (AWS Bedrock, Nova Lite) can add a second

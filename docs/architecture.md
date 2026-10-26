@@ -11,7 +11,9 @@ Three agents do the work; a gateway decides whether they are allowed to.
   rejection (near-circular blobs with a bright machined ring are fixtures,
   not defects), then per-defect scoring from contrast. Output: a list of
   detections with bounding box, area, score 0-1, and label
-  (scratch / dent / spot).
+  (scratch / dent / spot / crack / corrosion). Cracks are thin branching
+  lines that fill little of their bounding rectangle; corrosion is
+  reddish in colour, unlike the gray defects.
 
 - **Reasoning agent** (`visionguard/agents/reasoner.py`)
   Deterministic rules turn detections into a severity verdict

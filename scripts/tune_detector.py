@@ -1,7 +1,8 @@
 """Grid-search detector thresholds on a synthetic eval set.
 
-Generates a fixed-seed synthetic dataset (scratches, dents, spots, clean
-plates), runs every parameter combination in GRID through DetectorAgent,
+Generates a fixed-seed synthetic dataset (scratches, dents, spots, cracks,
+corrosion, clean plates), runs every parameter combination in GRID through
+DetectorAgent,
 and writes precision/recall per defect type to docs/tuning_report.md.
 
 The dataset seed is fixed so the report is reproducible; changing it
@@ -32,19 +33,20 @@ GRID = {
     "hole_circularity": [0.6, 0.75, 0.9],
 }
 
-DEFECT_KINDS = ["scratch", "dent", "spots"]
-KIND_TO_LABEL = {"scratch": "scratch", "dent": "dent", "spots": "spot"}
+DEFECT_KINDS = ["scratch", "dent", "spots", "crack", "corrosion"]
+KIND_TO_LABEL = {"scratch": "scratch", "dent": "dent", "spots": "spot",
+                 "crack": "crack", "corrosion": "corrosion"}
 
 
 def build_eval_set(per_kind, seed):
     """Generate images and return list of (path, kind).
 
     generate(count) writes `count` defective images cycling through the
-    defect kinds and `count` clean plates, so request 3x to get `per_kind`
+    defect kinds and `count` clean plates, so request 5x to get `per_kind`
     images of each defect kind.
     """
     out_dir = tempfile.mkdtemp(prefix="visionguard_tune_")
-    generate(3 * per_kind, out_dir, seed=seed)
+    generate(5 * per_kind, out_dir, seed=seed)
     items = []
     for name in sorted(os.listdir(out_dir)):
         if not name.endswith(".png"):
@@ -171,7 +173,8 @@ def write_report(path, per_kind, seed, rows, default_metrics):
     lines.append("## Method")
     lines.append("")
     lines.append(f"- Synthetic eval set: {per_kind} images per defect kind "
-                 f"(scratch, dent, spots) plus {3 * per_kind} clean plates, "
+                 f"(scratch, dent, spots, crack, corrosion) plus "
+                 f"{5 * per_kind} clean plates, "
                  f"generated with `make_sample_images.generate`, seed "
                  f"`{seed}`. Filenames carry the ground-truth defect kind.")
     lines.append("- Grid search over `DetectorAgent` thresholds:")

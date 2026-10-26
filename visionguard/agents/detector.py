@@ -3,6 +3,11 @@
 Pipeline: grayscale -> Gaussian blur -> plate segmentation -> dark-anomaly
 search inside the plate -> mounting-hole rejection -> scored detections.
 
+Labels come from contour shape and colour: a reddish blob is corrosion,
+a thin branching line that fills little of its own bounding rectangle is
+a crack, a long straight line is a scratch, a large filled blob is a dent,
+and anything smaller is a spot.
+
 No learned model is needed here. The detector works on any image where the
 plate is brighter than the background and defects are darker than the plate.
 """
@@ -19,7 +24,7 @@ class Detection:
     bbox: Tuple[int, int, int, int]  # x, y, w, h
     area: float
     defect_score: float  # 0.0 (clean) .. 1.0 (severe)
-    label: str           # scratch | dent | spot
+    label: str           # scratch | dent | spot | crack | corrosion
 
     def to_dict(self):
         d = asdict(self)
@@ -35,7 +40,10 @@ class DetectorAgent:
                  min_area: float = 80.0,
                  max_area: float = 20000.0,
                  hole_circularity: float = 0.75,
-                 ring_brightness_margin: float = 5.0):
+                 ring_brightness_margin: float = 5.0,
+                 corrosion_redness: float = 25.0,
+                 crack_fill: float = 0.25,
+                 crack_aspect: float = 5.0):
         self.blur_kernel = blur_kernel
         self.plate_threshold = plate_threshold
         self.defect_contrast = defect_contrast
@@ -43,6 +51,9 @@ class DetectorAgent:
         self.max_area = max_area
         self.hole_circularity = hole_circularity
         self.ring_brightness_margin = ring_brightness_margin
+        self.corrosion_redness = corrosion_redness
+        self.crack_fill = crack_fill
+        self.crack_aspect = crack_aspect
 
     def _plate_mask(self, gray: np.ndarray):
         """Binary mask of the bright plate region."""
@@ -110,7 +121,19 @@ class DetectorAgent:
             score = float(np.clip(contrast * 1.25, 0.0, 1.0))
             (_, _), (rw, rh), _ = cv2.minAreaRect(c)
             aspect = max(rw, rh) / max(min(rw, rh), 1.0)
-            if aspect > 4.0:
+            rect_fill = area / max(rw * rh, 1.0)
+            # Colour is in BGR order: rust is reddish, gray defects are not.
+            b_mean, _, r_mean = cv2.mean(img, mask=blob_mask)[:3]
+            if r_mean - b_mean > self.corrosion_redness:
+                label = "corrosion"
+            elif rect_fill < self.crack_fill and aspect < self.crack_aspect:
+                # Thin branching line: it wanders, so its bounding
+                # rectangle is squarish and mostly empty. A scratch is
+                # long and straight, so its aspect stays well above this
+                # bar even when its fill dips, and dents and spots fill
+                # most of their rectangle.
+                label = "crack"
+            elif aspect > 4.0:
                 label = "scratch"
             elif area > 1500:
                 label = "dent"

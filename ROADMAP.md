@@ -19,5 +19,5 @@ Competition 2026. Check items off as they land.
 
 ## Nice to have
 
-- [ ] More defect types: add crack and corrosion to the sample generator and detector labels, with tests.
+- [x] More defect types: add crack and corrosion to the sample generator and detector labels, with tests. Crack is a thin jagged branching line, labelled when a contour fills under 25 percent of its bounding rectangle with aspect under 5; corrosion is a mottled rust patch, labelled when the blob mean is reddish (red minus blue over 25). Sample generator, detector, tuning helper, and tests updated; landed 2026-10-26 with 64 tests passing.
 - [ ] CONTRIBUTING.md: how to run, test, and extend the project for anyone cloning the repo.

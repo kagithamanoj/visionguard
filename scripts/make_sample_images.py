@@ -2,7 +2,8 @@
 
 Creates two classes of 640x480 images in samples/:
   clean    - a metal plate with light texture noise, no defects
-  defective - the same plate with scratches, dents, or spots drawn on it
+  defective - the same plate with scratches, dents, spots, cracks, or
+    corrosion drawn on it
 
 Also writes samples/labels.csv mapping filename -> label.
 Run: python scripts/make_sample_images.py [--count N] [--out DIR]
@@ -73,7 +74,65 @@ def _spots(img, plate_box, rng):
     return img
 
 
-DEFECT_FNS = {"scratch": _scratch, "dent": _dent, "spots": _spots}
+def _crack(img, plate_box, rng):
+    """A thin, jagged, branching line, darker and thinner than a scratch."""
+    x0, y0, x1, y1 = plate_box
+    x = int(rng.integers(x0 + 60, x0 + 160))
+    y = int(rng.integers(y0 + 60, y1 - 60))
+    angle = float(rng.uniform(-0.5, 0.5))
+    pts = [(x, y)]
+    branch_starts = []
+    for step in range(int(rng.integers(12, 18))):
+        angle += float(rng.uniform(-0.9, 0.9))
+        x += int(18 * np.cos(angle))
+        y += int(18 * np.sin(angle))
+        x = min(max(x, x0 + 15), x1 - 15)
+        y = min(max(y, y0 + 15), y1 - 15)
+        pts.append((x, y))
+        if step in (4, 8, 12):
+            branch_starts.append((x, y, angle))
+    cv2.polylines(img, [np.array(pts, dtype=np.int32)], False,
+                  (30, 30, 30), thickness=2)
+    for bx, by, base_angle in branch_starts:
+        bx2, by2 = bx, by
+        branch_angle = base_angle + float(rng.uniform(0.8, 1.4))
+        branch_pts = [(bx2, by2)]
+        for _ in range(int(rng.integers(3, 6))):
+            branch_angle += float(rng.uniform(-0.6, 0.6))
+            bx2 += int(14 * np.cos(branch_angle))
+            by2 += int(14 * np.sin(branch_angle))
+            bx2 = min(max(bx2, x0 + 15), x1 - 15)
+            by2 = min(max(by2, y0 + 15), y1 - 15)
+            branch_pts.append((bx2, by2))
+        cv2.polylines(img, [np.array(branch_pts, dtype=np.int32)], False,
+                      (30, 30, 30), thickness=2)
+    return img
+
+
+def _corrosion(img, plate_box, rng):
+    """A mottled rust patch: an irregular rust-coloured blotch with
+    darker speckles. Rust tones are reddish in BGR, unlike the gray
+    defects, which is what lets the detector tell corrosion apart."""
+    x0, y0, x1, y1 = plate_box
+    cx = int(rng.integers(x0 + 90, x1 - 90))
+    cy = int(rng.integers(y0 + 70, y1 - 70))
+    axes = (int(rng.integers(55, 85)), int(rng.integers(35, 55)))
+    angle = int(rng.integers(0, 180))
+    cv2.ellipse(img, (cx, cy), axes, angle, 0, 360, (60, 90, 150), -1)
+    rusts = [(40, 70, 140), (50, 90, 165), (30, 60, 120), (70, 100, 170)]
+    for _ in range(int(rng.integers(25, 40))):
+        dx = int(rng.integers(-axes[0], axes[0] + 1))
+        dy = int(rng.integers(-axes[1], axes[1] + 1))
+        if (dx / axes[0]) ** 2 + (dy / axes[1]) ** 2 > 1.0:
+            continue
+        r = int(rng.integers(3, 10))
+        color = rusts[int(rng.integers(0, len(rusts)))]
+        cv2.circle(img, (cx + dx, cy + dy), r, color, -1)
+    return img
+
+
+DEFECT_FNS = {"scratch": _scratch, "dent": _dent, "spots": _spots,
+              "crack": _crack, "corrosion": _corrosion}
 
 
 def generate(count, out_dir, seed=42):
